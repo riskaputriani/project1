@@ -1,5 +1,7 @@
 import sys
 import asyncio
+import platform
+import os
 
 import streamlit as st
 from playwright.sync_api import Error as PlaywrightError, sync_playwright
@@ -33,8 +35,40 @@ def fetch_title_from_url(url: str, timeout: int = 30_000) -> str:
             browser.close()
 
 
+def _system_info_text() -> str:
+    """Return a text summary similar to the provided console script."""
+    parts = [
+        "\n=== SYSTEM INFO ===",
+        f"OS          : {platform.system()} {platform.release()}",
+        f"Kernel      : {platform.version()}",
+        f"Machine     : {platform.machine()}",
+        f"Platform    : {platform.platform()}",
+        "",
+        "=== PYTHON INFO ===",
+        f"Python      : {sys.version.replace('\\n', ' ')}",
+        f"Build       : {platform.python_build()}",
+        f"Compiler    : {platform.python_compiler()}",
+        "",
+        "=== ENVIRONMENT ===",
+        f"os.name     : {os.name}",
+        f"USER        : {os.environ.get('USER')}",
+        f"HOME        : {os.environ.get('HOME')}",
+        "",
+        "=== SPECIAL CHECKS ===",
+        f"Docker?     : {os.path.exists('/.dockerenv')}",
+        f"WSL?        : {'microsoft' in platform.release().lower()}",
+        f"Alpine?     : {'alpine' in platform.platform().lower()}",
+    ]
+    return "\n".join(parts)
+
+
 st.set_page_config(page_title="Playwright Title Reader", layout="centered")
 st.title("Ambil Title dari URL dengan Playwright")
+st.caption("Tekan tombol agar Playwright membuka URL dan membaca judul.")
+st.subheader("Info Sistem")
+st.code(_system_info_text(), language="text")
+
+st.markdown("---")
 
 url_input = st.text_input("Masukkan URL yang ingin diambil judulnya", value="")
 
