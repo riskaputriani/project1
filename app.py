@@ -27,6 +27,9 @@ LIGHTPANDA_RELEASE_URL = (
 LIGHTPANDA_PORT = 9222
 LIGHTPANDA_CDP_ENDPOINT = f"ws://127.0.0.1:{LIGHTPANDA_PORT}"
 LIGHTPANDA_BINARY_PATH = Path("lightpanda")
+LIGHTPANDA_SESSION_STARTED = "lightpanda_started"
+LIGHTPANDA_SESSION_PROCESS = "lightpanda_process"
+LIGHTPANDA_SESSION_ERROR = "lightpanda_error"
 
 
 def _download_lightpanda(target: Path) -> None:
@@ -65,22 +68,30 @@ def _is_lightpanda_listening() -> bool:
         return False
 
 
-@st.experimental_singleton
-def _start_lightpanda_instance() -> Optional[subprocess.Popen]:
+def _start_lightpanda_instance() -> None:
     """Download and launch LightPanda once per Streamlit session."""
+    if st.session_state.get(LIGHTPANDA_SESSION_ERROR):
+        return
+    if st.session_state.get(LIGHTPANDA_SESSION_STARTED):
+        return
     if _is_lightpanda_listening():
-        return None
+        st.session_state[LIGHTPANDA_SESSION_STARTED] = True
+        return
     binary = _ensure_lightpanda_binary()
     try:
-        return subprocess.Popen(
+        proc = subprocess.Popen(
             [str(binary), "serve", "--host", "127.0.0.1", "--port", str(LIGHTPANDA_PORT)],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
     except OSError as exc:
-        raise RuntimeError(
+        message = (
             "LightPanda gagal dijalankan. Pastikan binari dapat dieksekusi di sistem Anda."
-        ) from exc
+        )
+        st.session_state[LIGHTPANDA_SESSION_ERROR] = message
+        raise RuntimeError(message) from exc
+    st.session_state[LIGHTPANDA_SESSION_PROCESS] = proc
+    st.session_state[LIGHTPANDA_SESSION_STARTED] = True
 
 
 def _ensure_scheme(value: str) -> str:
@@ -139,11 +150,11 @@ st.subheader("Info Sistem")
 st.code(_system_info_text(), language="text")
 st.markdown("---")
 
-lightpanda_error: Optional[str] = None
+lightpanda_error: Optional[str] = st.session_state.get(LIGHTPANDA_SESSION_ERROR)
 try:
     _start_lightpanda_instance()
 except RuntimeError as exc:
-    lightpanda_error = str(exc)
+    lightpanda_error = st.session_state.get(LIGHTPANDA_SESSION_ERROR) or str(exc)
 
 lightpanda_ready = _is_lightpanda_listening()
 
