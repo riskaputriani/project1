@@ -51,7 +51,6 @@ def fetch_title_from_url(url: str, timeout: int = 30_000) -> str:
         with playwright.chromium.launch(headless=True) as browser:
             page = browser.new_page()
             page.goto(url, wait_until="domcontentloaded", timeout=timeout)
-            page.wait_for_selector("title", timeout=timeout)
             return page.title()
 
 
