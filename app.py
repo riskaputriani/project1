@@ -1,7 +1,10 @@
-import sys
 import asyncio
-import platform
 import os
+import platform
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
 
 import streamlit as st
 from playwright.sync_api import Error as PlaywrightError, sync_playwright
@@ -14,6 +17,25 @@ if sys.platform == "win32":
         pass
 
 
+_BROWSER_INSTALL_MARKER = Path(tempfile.gettempdir()) / "playwright-chromium-installed.marker"
+
+
+def ensure_playwright_browsers_installed() -> None:
+    """Run a one-time Playwright install so future launches find the Chromium executable."""
+    if _BROWSER_INSTALL_MARKER.exists():
+        return
+
+    command = [sys.executable, "-m", "playwright", "install", "chromium"]
+    try:
+        subprocess.run(command, check=True)
+    except subprocess.CalledProcessError as exc:
+        raise PlaywrightError(
+            "Unable to install Chromium automatically. "
+            "Run `python -m playwright install chromium` and retry."
+        ) from exc
+    _BROWSER_INSTALL_MARKER.write_text("installed")
+
+
 def _ensure_scheme(value: str) -> str:
     """Add a default scheme when the provided URL is missing one."""
     trimmed = value.strip()
@@ -24,6 +46,7 @@ def _ensure_scheme(value: str) -> str:
 
 def fetch_title_from_url(url: str, timeout: int = 30_000) -> str:
     """Use Playwright to launch a local Chromium browser and return the title."""
+    ensure_playwright_browsers_installed()
     with sync_playwright() as playwright:
         with playwright.chromium.launch(headless=True) as browser:
             page = browser.new_page()
@@ -65,8 +88,8 @@ st.caption("Tekan tombol agar Playwright meluncurkan Chromium lokal dan membaca 
 
 st.subheader("Playwright Local Browser")
 st.caption(
-    "Setelah memasang dependensi, jalankan `python -m playwright install` "
-    "atau `python -m playwright install chromium` satu kali agar browser tersedia."
+    "Playwright akan mencoba menjalankan `python -m playwright install chromium` sekali "
+    "per runtime, tapi jalankan manual selama pengembangan agar startup lebih cepat."
 )
 st.markdown("---")
 

@@ -7,7 +7,7 @@ Streamlit frontend that launches a local Chromium instance via Playwright to rea
 1. (Optional) Create and activate a virtual environment.
 2. `python -m pip install --upgrade pip`
 3. `pip install -r requirements.txt`
-4. `python -m playwright install` *(or scope to a specific browser like `python -m playwright install chromium`).*
+4. `python -m playwright install` *(or scope to a specific browser like `python -m playwright install chromium`).* The app will run `python -m playwright install chromium` automatically on the first request if it detects Chromium is missing, which is handy during Streamlit Cloud builds.
 5. When deploying on Debian/Ubuntu, install the runtime dependencies listed in `packages.txt` with `xargs sudo apt-get install -y $(cat packages.txt)`.
 
 ## Running the app
