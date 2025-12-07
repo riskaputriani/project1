@@ -2,13 +2,6 @@ import sys
 import asyncio
 import platform
 import os
-import subprocess
-import socket
-import stat
-import shutil
-import urllib.request
-from pathlib import Path
-from typing import Optional
 
 import streamlit as st
 from playwright.sync_api import Error as PlaywrightError, sync_playwright
@@ -21,86 +14,10 @@ if sys.platform == "win32":
         pass
 
 
-LIGHTPANDA_RELEASE_URL = (
-    "https://github.com/lightpanda-io/browser/releases/download/nightly/lightpanda-x86_64-linux"
+LIGHTPANDA_CDP_ENDPOINT = (
+    "wss://euwest.cloud.lightpanda.io/ws?"
+    "token=a96112587fbc2f26ca83a2be4153dc81ffe28f7c46f82f8abb38daca22b2d459"
 )
-LIGHTPANDA_PORT = 9222
-LIGHTPANDA_CDP_ENDPOINT = f"ws://127.0.0.1:{LIGHTPANDA_PORT}"
-LIGHTPANDA_BINARY_PATH = Path("lightpanda")
-LIGHTPANDA_SESSION_STARTED = "lightpanda_started"
-LIGHTPANDA_SESSION_PROCESS = "lightpanda_process"
-LIGHTPANDA_SESSION_ERROR = "lightpanda_error"
-
-
-def _is_supported_os() -> bool:
-    return sys.platform.startswith("linux")
-
-
-def _download_lightpanda(target: Path) -> None:
-    """Download the LightPanda binary and make sure it is executable."""
-    temp_path = target.with_suffix(".download")
-    try:
-        with urllib.request.urlopen(LIGHTPANDA_RELEASE_URL, timeout=30) as response, temp_path.open(
-            "wb"
-        ) as temp_file:
-            shutil.copyfileobj(response, temp_file)
-        temp_path.replace(target)
-        try:
-            target.chmod(target.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-        except PermissionError:
-            pass
-    except Exception as exc:
-        if temp_path.exists():
-            temp_path.unlink()
-        raise RuntimeError(f"Gagal mengunduh LightPanda: {exc}") from exc
-
-
-def _ensure_lightpanda_binary() -> Path:
-    if LIGHTPANDA_BINARY_PATH.exists():
-        return LIGHTPANDA_BINARY_PATH
-    _download_lightpanda(LIGHTPANDA_BINARY_PATH)
-    if not LIGHTPANDA_BINARY_PATH.exists():
-        raise RuntimeError("LightPanda tidak ditemukan setelah unduhan.")
-    return LIGHTPANDA_BINARY_PATH
-
-
-def _is_lightpanda_listening() -> bool:
-    try:
-        with socket.create_connection(("127.0.0.1", LIGHTPANDA_PORT), timeout=1):
-            return True
-    except OSError:
-        return False
-
-
-def _start_lightpanda_instance() -> None:
-    """Download and launch LightPanda once per Streamlit session."""
-    if not _is_supported_os():
-        st.session_state[LIGHTPANDA_SESSION_ERROR] = (
-            "LightPanda hanya didukung di Linux."
-        )
-        return
-    if st.session_state.get(LIGHTPANDA_SESSION_ERROR):
-        return
-    if st.session_state.get(LIGHTPANDA_SESSION_STARTED):
-        return
-    if _is_lightpanda_listening():
-        st.session_state[LIGHTPANDA_SESSION_STARTED] = True
-        return
-    binary = _ensure_lightpanda_binary()
-    try:
-        proc = subprocess.Popen(
-            [str(binary), "serve", "--host", "127.0.0.1", "--port", str(LIGHTPANDA_PORT)],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-    except OSError as exc:
-        message = (
-            "LightPanda gagal dijalankan. Pastikan binari dapat dieksekusi di sistem Anda."
-        )
-        st.session_state[LIGHTPANDA_SESSION_ERROR] = message
-        raise RuntimeError(message) from exc
-    st.session_state[LIGHTPANDA_SESSION_PROCESS] = proc
-    st.session_state[LIGHTPANDA_SESSION_STARTED] = True
 
 
 def _ensure_scheme(value: str) -> str:
@@ -153,28 +70,17 @@ def _system_info_text() -> str:
 
 st.set_page_config(page_title="Playwright Title Reader", layout="centered")
 st.title("Ambil Title dari URL dengan Playwright")
-st.caption("Tekan tombol agar Playwright membuka URL lewat LightPanda dan membaca judul.")
+st.caption(
+    "Tekan tombol agar Playwright membuka URL melalui endpoint CDP "
+    "dan membaca judul."
+)
 
 st.subheader("Info Sistem")
 st.code(_system_info_text(), language="text")
 st.markdown("---")
 
-lightpanda_error: Optional[str] = st.session_state.get(LIGHTPANDA_SESSION_ERROR)
-try:
-    _start_lightpanda_instance()
-except RuntimeError as exc:
-    lightpanda_error = st.session_state.get(LIGHTPANDA_SESSION_ERROR) or str(exc)
-
-lightpanda_ready = _is_lightpanda_listening()
-
-st.subheader("LightPanda Browser")
-if lightpanda_error:
-    st.error(f"LightPanda gagal diinisialisasi: {lightpanda_error}")
-elif lightpanda_ready:
-    st.success(f"LightPanda siap di {LIGHTPANDA_CDP_ENDPOINT}")
-else:
-    st.info("LightPanda sedang dijalankan. Tunggu beberapa saat dan klik tombol lagi.")
-st.caption(f"CDP endpoint: {LIGHTPANDA_CDP_ENDPOINT}")
+st.subheader("Playwright CDP Endpoint")
+st.caption(LIGHTPANDA_CDP_ENDPOINT)
 st.markdown("---")
 
 url_input = st.text_input("Masukkan URL yang ingin diambil judulnya", value="")
@@ -183,8 +89,6 @@ if st.button("Dapatkan Title"):
     normalized_url = _ensure_scheme(url_input)
     if not normalized_url:
         st.error("Silakan masukkan URL terlebih dahulu.")
-    elif not _is_lightpanda_listening():
-        st.error("LightPanda belum siap, silakan tunggu beberapa detik dan coba lagi.")
     else:
         with st.spinner("Memuat dan membaca title..."):
             try:
