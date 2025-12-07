@@ -5,6 +5,6 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "streamlit>=1.30",
-    "playwright>=1.40",
+    "streamlit",
+    "playwright",
 ]

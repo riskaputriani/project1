@@ -14,12 +14,6 @@ if sys.platform == "win32":
         pass
 
 
-LIGHTPANDA_CDP_ENDPOINT = (
-    "wss://euwest.cloud.lightpanda.io/ws?"
-    "token=a96112587fbc2f26ca83a2be4153dc81ffe28f7c46f82f8abb38daca22b2d459"
-)
-
-
 def _ensure_scheme(value: str) -> str:
     """Add a default scheme when the provided URL is missing one."""
     trimmed = value.strip()
@@ -29,16 +23,13 @@ def _ensure_scheme(value: str) -> str:
 
 
 def fetch_title_from_url(url: str, timeout: int = 30_000) -> str:
-    """Use Playwright over CDP to open the page and return the fully loaded title."""
+    """Use Playwright to launch a local Chromium browser and return the title."""
     with sync_playwright() as playwright:
-        browser = playwright.chromium.connect_over_cdp(LIGHTPANDA_CDP_ENDPOINT)
-        try:
+        with playwright.chromium.launch(headless=True) as browser:
             page = browser.new_page()
             page.goto(url, wait_until="domcontentloaded", timeout=timeout)
             page.wait_for_selector("title", timeout=timeout)
             return page.title()
-        finally:
-            browser.close()
 
 
 def _system_info_text() -> str:
@@ -70,17 +61,17 @@ def _system_info_text() -> str:
 
 st.set_page_config(page_title="Playwright Title Reader", layout="centered")
 st.title("Ambil Title dari URL dengan Playwright")
+st.caption("Tekan tombol agar Playwright meluncurkan Chromium lokal dan membaca judul.")
+
+st.subheader("Playwright Local Browser")
 st.caption(
-    "Tekan tombol agar Playwright membuka URL melalui endpoint CDP "
-    "dan membaca judul."
+    "Setelah memasang dependensi, jalankan `python -m playwright install` "
+    "atau `python -m playwright install chromium` satu kali agar browser tersedia."
 )
+st.markdown("---")
 
 st.subheader("Info Sistem")
 st.code(_system_info_text(), language="text")
-st.markdown("---")
-
-st.subheader("Playwright CDP Endpoint")
-st.caption(LIGHTPANDA_CDP_ENDPOINT)
 st.markdown("---")
 
 url_input = st.text_input("Masukkan URL yang ingin diambil judulnya", value="")

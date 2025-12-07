@@ -1,2 +1,2 @@
-streamlit>=1.30
-playwright>=1.40
+streamlit
+playwright
