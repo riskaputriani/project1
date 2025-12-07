@@ -32,6 +32,10 @@ LIGHTPANDA_SESSION_PROCESS = "lightpanda_process"
 LIGHTPANDA_SESSION_ERROR = "lightpanda_error"
 
 
+def _is_supported_os() -> bool:
+    return sys.platform.startswith("linux")
+
+
 def _download_lightpanda(target: Path) -> None:
     """Download the LightPanda binary and make sure it is executable."""
     temp_path = target.with_suffix(".download")
@@ -70,6 +74,11 @@ def _is_lightpanda_listening() -> bool:
 
 def _start_lightpanda_instance() -> None:
     """Download and launch LightPanda once per Streamlit session."""
+    if not _is_supported_os():
+        st.session_state[LIGHTPANDA_SESSION_ERROR] = (
+            "LightPanda hanya didukung di Linux."
+        )
+        return
     if st.session_state.get(LIGHTPANDA_SESSION_ERROR):
         return
     if st.session_state.get(LIGHTPANDA_SESSION_STARTED):
